@@ -1,0 +1,54 @@
+local tool = script.Parent
+local remote = tool:WaitForChild("Fire")
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local ammo = tool:WaitForChild("Ammo")
+local playerGui = player:WaitForChild("PlayerGui")
+local ui = playerGui:WaitForChild("AmmoUI")
+local ammoLabel = ui:WaitForChild("AmmoLabel")
+
+local uis = game:GetService("UserInputService")
+local reloading = false
+local maxAmmo = 12
+ammo.Value = maxAmmo
+
+local function updateUI()
+	ammoLabel.Text = ammo.Value .. " / " .. maxAmmo
+end
+
+local function doReload()
+	if reloading or ammo.Value == maxAmmo then return end
+	reloading = true
+	updateUI()
+	task.wait(2)
+	ammo.Value = maxAmmo
+	updateUI()
+	reloading = false
+end
+
+tool.Equipped:Connect(function()
+	updateUI()
+	ui.Enabled = true
+	mouse.Icon = "rbxasset://textures/GunCursor.png"
+end)
+
+tool.Unequipped:Connect(function()
+	ui.Enabled = false
+end)
+
+mouse.Button1Down:Connect(function()
+	if tool.Parent ~= player.Character or reloading or ammo.Value <= 0 then return end
+	ammo.Value -= 1
+	remote:FireServer(mouse.Hit.Position)
+	updateUI()
+	if ammo.Value <= 0 then
+		doReload()
+	end
+end)
+
+uis.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == Enum.KeyCode.R and tool.Parent == player.Character then
+		doReload()
+	end
+end)
