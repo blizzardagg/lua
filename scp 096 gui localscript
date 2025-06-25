@@ -1,0 +1,30 @@
+local player = game.Players.LocalPlayer
+local gui = script.Parent
+local label = gui:WaitForChild("ControlsLabel")
+
+local function updateVisibility()
+	local flag = player:FindFirstChild("IsControlling096")
+	label.Visible = flag and flag.Value == true
+end
+
+local function watchForFlag()
+	local flag = player:FindFirstChild("IsControlling096")
+	if flag then
+		flag:GetPropertyChangedSignal("Value"):Connect(updateVisibility)
+		updateVisibility()
+	end
+end
+
+player.ChildAdded:Connect(function(child)
+	if child.Name == "IsControlling096" then
+		watchForFlag()
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	task.wait(0.3)
+	updateVisibility()
+end)
+
+watchForFlag()
+updateVisibility()
