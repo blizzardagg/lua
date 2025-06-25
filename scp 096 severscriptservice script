@@ -1,0 +1,214 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
+local Anomalies = workspace:WaitForChild("Anomalies")
+
+local RequestPossess = ReplicatedStorage:WaitForChild("RequestPossess096")
+local ReleasePossess = ReplicatedStorage:WaitForChild("ReleasePossess096")
+local Attack096 = ReplicatedStorage:WaitForChild("Attack096")
+
+local controllingPlayer = nil
+local removedTools = {}
+
+local function setCharacterVisibility(character, visible)
+	for _, desc in ipairs(character:GetDescendants()) do
+		if desc:IsA("BasePart") or (desc:IsA("Accessory") and desc:FindFirstChild("Handle")) then
+			local part = desc:IsA("Accessory") and desc:FindFirstChild("Handle") or desc
+			if part.Name ~= "HumanoidRootPart" then
+				part.Transparency = visible and 0 or 1
+				part.CanCollide = visible
+			end
+		elseif desc:IsA("Decal") then
+			desc.Transparency = visible and 0 or 1
+		end
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = visible and 16 or 0
+		humanoid.JumpPower = visible and 50 or 0
+		humanoid.PlatformStand = not visible
+	end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	if hrp then
+		hrp.Transparency = 1
+	end
+end
+
+local function setCharacterVisible(character)
+	setCharacterVisibility(character, true)
+end
+
+local function setCharacterInvisible(character)
+	setCharacterVisibility(character, false)
+end
+
+local function removeTools(player)
+	removedTools[player] = {}
+	local function storeTools(container)
+		for _, tool in ipairs(container:GetChildren()) do
+			if tool:IsA("Tool") then
+				table.insert(removedTools[player], tool)
+				tool.Parent = ServerStorage
+			end
+		end
+	end
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if backpack then
+		storeTools(backpack)
+	end
+	local character = player.Character
+	if character then
+		storeTools(character)
+	end
+end
+
+local function restoreTools(player)
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if backpack and removedTools[player] then
+		for _, tool in ipairs(removedTools[player]) do
+			tool.Parent = backpack
+		end
+	end
+	removedTools[player] = nil
+end
+
+RequestPossess.OnServerEvent:Connect(function(player)
+	if controllingPlayer == player then return end
+	if controllingPlayer then
+		RequestPossess:FireClient(player, false)
+		return
+	end
+	local character = player.Character
+	if not character then
+		RequestPossess:FireClient(player, false)
+		return
+	end
+	local flag = player:FindFirstChild("IsControlling096")
+	if flag and flag.Value then return end
+	local scp096 = Anomalies:FindFirstChild("SCP_096")
+	if not scp096 or not scp096.PrimaryPart then
+		RequestPossess:FireClient(player, false)
+		return
+	end
+	controllingPlayer = player
+	setCharacterInvisible(character)
+	removeTools(player)
+	if not flag then
+		flag = Instance.new("BoolValue")
+		flag.Name = "IsControlling096"
+		flag.Parent = player
+	end
+	flag.Value = true
+	RequestPossess:FireClient(player, true)
+end)
+
+ReleasePossess.OnServerEvent:Connect(function(player)
+	if controllingPlayer ~= player then return end
+	local character = player.Character
+	controllingPlayer = nil
+	if character then
+		setCharacterVisible(character)
+		restoreTools(player)
+	end
+	local flag = player:FindFirstChild("IsControlling096")
+	if flag then
+		flag.Value = false
+	end
+	ReleasePossess:FireClient(player)
+end)
+
+Attack096.OnServerEvent:Connect(function(player)
+	if player ~= controllingPlayer then return end
+
+	local scp096 = Anomalies:FindFirstChild("SCP_096")
+	if not scp096 or not scp096.PrimaryPart then return end
+
+	local origin = scp096.PrimaryPart.Position
+	local range = 20
+	local damage = 50
+
+	for _, target in ipairs(Players:GetPlayers()) do
+		if target ~= player and target.Character then
+			local root = target.Character:FindFirstChild("HumanoidRootPart")
+			local humanoid = target.Character:FindFirstChildOfClass("Humanoid")
+			if root and humanoid and humanoid.Health > 0 then
+				if (root.Position - origin).Magnitude <= range then
+					humanoid:TakeDamage(damage)
+				end
+			end
+		end
+	end
+
+	local effect = Instance.new("ParticleEmitter")
+	effect.Name = "AttackEffect"
+	effect.Texture = "rbxassetid://241837157"
+	effect.Color = ColorSequence.new(Color3.new(1, 0, 0))
+	effect.LightEmission = 1
+	effect.Size = NumberSequence.new(2)
+	effect.Lifetime = NumberRange.new(0.3)
+	effect.Rate = 500
+	effect.Speed = NumberRange.new(0)
+	effect.Enabled = true
+	effect.Parent = scp096.PrimaryPart
+
+	task.delay(0.5, function()
+		if effect then
+			effect.Enabled = false
+			effect:Destroy()
+		end
+	end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	if controllingPlayer == player then
+		controllingPlayer = nil
+	end
+	removedTools[player] = nil
+end)
+
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function(character)
+		task.wait(0.25)
+		local flag = player:FindFirstChild("IsControlling096")
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			hrp.Transparency = 1
+		end
+		if flag and flag.Value then
+			setCharacterInvisible(character)
+			if humanoid then
+				humanoid.WalkSpeed = 0
+				humanoid.JumpPower = 0
+				humanoid.PlatformStand = true
+			end
+		else
+			setCharacterVisible(character)
+			if humanoid then
+				humanoid.WalkSpeed = 16
+				humanoid.JumpPower = 50
+				humanoid.PlatformStand = false
+			end
+		end
+	end)
+end)
+
+local function keepHRPHidden(character)
+	local hrp = character:WaitForChild("HumanoidRootPart", 5)
+	if hrp then
+		hrp.Transparency = 1
+		hrp.CanCollide = false
+	end
+end
+
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function(character)
+		keepHRPHidden(character)
+	end)
+end)
+
+for _, player in pairs(Players:GetPlayers()) do
+	if player.Character then
+		keepHRPHidden(player.Character)
+	end
+end
