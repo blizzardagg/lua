@@ -1,0 +1,91 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local Anomalies = workspace:WaitForChild("Anomalies")
+local SCP_173 = Anomalies:WaitForChild("SCP_173")
+
+local MOVE_SPEED = 28
+local CHECK_INTERVAL = 0.1
+local KILL_DISTANCE = 5
+
+local currentTween = nil
+
+local function isLookingAtSCP(player, targetPart)
+	local character = player.Character
+	if not character then return false end
+	local head = character:FindFirstChild("Head")
+	if not head then return false end
+
+	local directionToSCP = (targetPart.Position - head.Position).Unit
+	local lookVector = head.CFrame.LookVector
+	local dot = directionToSCP:Dot(lookVector)
+
+	return dot > 0.75
+end
+
+local function anyPlayerLooking()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if isLookingAtSCP(player, SCP_173.PrimaryPart) then
+			return true
+		end
+	end
+	return false
+end
+
+local function getClosestPlayer()
+	local closestPlayer = nil
+	local closestDistance = math.huge
+	for _, player in ipairs(Players:GetPlayers()) do
+		local character = player.Character
+		if character and character:FindFirstChild("HumanoidRootPart") then
+			local dist = (character.HumanoidRootPart.Position - SCP_173.PrimaryPart.Position).Magnitude
+			if dist < closestDistance then
+				closestDistance = dist
+				closestPlayer = character
+			end
+		end
+	end
+	return closestPlayer
+end
+
+task.spawn(function()
+	while true do
+		task.wait(CHECK_INTERVAL)
+
+		if not SCP_173 or not SCP_173.PrimaryPart then continue end
+
+		if currentTween then
+			currentTween:Cancel()
+			currentTween = nil
+		end
+
+		if anyPlayerLooking() then
+			continue
+		end
+
+		local target = getClosestPlayer()
+		if target then
+			local origin = SCP_173.PrimaryPart.Position
+			local targetPos = target.HumanoidRootPart.Position
+			local distance = (targetPos - origin).Magnitude
+
+			if distance <= KILL_DISTANCE then
+				local humanoid = target:FindFirstChildOfClass("Humanoid")
+				if humanoid and humanoid.Health > 0 then
+					humanoid.Health = 0
+				end
+			else
+				local moveTime = distance / MOVE_SPEED
+				local goalCFrame = CFrame.new(targetPos)
+
+				currentTween = TweenService:Create(
+					SCP_173.PrimaryPart,
+					TweenInfo.new(moveTime, Enum.EasingStyle.Linear),
+					{CFrame = goalCFrame}
+				)
+				currentTween:Play()
+			end
+		end
+	end
+end)
