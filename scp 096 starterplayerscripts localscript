@@ -1,0 +1,145 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local workspace = game:GetService("Workspace")
+
+local RequestPossess = ReplicatedStorage:WaitForChild("RequestPossess096")
+local ReleasePossess = ReplicatedStorage:WaitForChild("ReleasePossess096")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local anomaliesFolder = workspace:WaitForChild("Anomalies")
+local scp096 = anomaliesFolder:WaitForChild("SCP_096")
+
+local controlling = false
+local speed = 16
+local moveVector = Vector3.new()
+local keys = {W = false, A = false, S = false, D = false}
+
+local function moveSCP(dt)
+	if controlling and scp096 and scp096.PrimaryPart then
+		local delta = moveVector * speed * dt
+		scp096:SetPrimaryPartCFrame(scp096.PrimaryPart.CFrame * CFrame.new(delta))
+	end
+end
+
+RequestPossess.OnClientEvent:Connect(function(success)
+	if success then
+		controlling = true
+		camera.CameraSubject = scp096.PrimaryPart
+		camera.CameraType = Enum.CameraType.Custom
+	else
+		controlling = false
+		camera.CameraSubject = player.Character and player.Character:FindFirstChild("Humanoid")
+		camera.CameraType = Enum.CameraType.Custom
+	end
+end)
+
+ReleasePossess.OnClientEvent:Connect(function()
+	controlling = false
+	camera.CameraSubject = player.Character and player.Character:FindFirstChild("Humanoid")
+	camera.CameraType = Enum.CameraType.Custom
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.W then keys.W = true end
+	if input.KeyCode == Enum.KeyCode.A then keys.A = true end
+	if input.KeyCode == Enum.KeyCode.S then keys.S = true end
+	if input.KeyCode == Enum.KeyCode.D then keys.D = true end
+	if input.KeyCode == Enum.KeyCode.E and controlling then
+		ReleasePossess:FireServer()
+	end
+	if input.KeyCode == Enum.KeyCode.P then -- Press P to possess SCP-096
+		RequestPossess:FireServer()
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.W then keys.W = false end
+	if input.KeyCode == Enum.KeyCode.A then keys.A = false end
+	if input.KeyCode == Enum.KeyCode.S then keys.S = false end
+	if input.KeyCode == Enum.KeyCode.D then keys.D = false end
+end)
+
+RunService.RenderStepped:Connect(function(dt)
+	if not controlling then return end
+
+	local camCF = workspace.CurrentCamera.CFrame
+	local forward = Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z).Unit
+	local right = Vector3.new(camCF.RightVector.X, 0, camCF.RightVector.Z).Unit
+
+	moveVector = Vector3.new()
+	if keys.W then moveVector += forward end
+	if keys.S then moveVector -= forward end
+	if keys.A then moveVector -= right end
+	if keys.D then moveVector += right end
+
+	if moveVector.Magnitude > 0 then
+		moveVector = moveVector.Unit
+		moveSCP(dt)
+	end
+end)
+
+
+
+
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+local function hideHRP(char)
+	local hrp = char:WaitForChild("HumanoidRootPart", 5)
+	if hrp then
+		hrp.CanCollide = false
+		hrp.LocalTransparencyModifier = 1
+		RunService.Heartbeat:Connect(function()
+			hrp.LocalTransparencyModifier = 1
+		end)
+	end
+end
+
+player.CharacterAdded:Connect(hideHRP)
+
+if player.Character then
+	hideHRP(player.Character)
+end
+
+
+
+
+
+
+
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function onCharacterAdded(character)
+	local flag = player:WaitForChild("IsControlling096", 5)
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+if player.Character then
+	onCharacterAdded(player.Character)
+end
+
+
+
+
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local attackEvent = ReplicatedStorage:WaitForChild("Attack096")
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.F then
+		attackEvent:FireServer()
+	end
+end)
+
