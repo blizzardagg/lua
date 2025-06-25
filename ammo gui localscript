@@ -1,0 +1,2 @@
+local gui = script.Parent
+gui.Enabled = false
